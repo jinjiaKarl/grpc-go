@@ -107,50 +107,50 @@ type serverWorkerData struct {
 type Server struct {
 	opts serverOptions
 
-	mu       sync.Mutex // guards following
-	lis      map[net.Listener]bool
-	conns    map[transport.ServerTransport]bool
-	serve    bool
-	drain    bool
-	cv       *sync.Cond              // signaled when connections close for GracefulStop
-	services map[string]*serviceInfo // service name -> service info
-	events   trace.EventLog
+	mu       sync.Mutex                         // guards following
+	lis      map[net.Listener]bool              // server监听的地址，可以有多个
+	conns    map[transport.ServerTransport]bool // 已经建立的http2连接
+	serve    bool                               // 表示服务是否开启, 在Serve()方法中赋值为true
+	drain    bool                               // 在调用GracefulStop（优雅的停止服务）方法被赋值为true
+	cv       *sync.Cond                         // signaled when connections close for GracefulStop
+	services map[string]*serviceInfo            // service name -> service info
+	events   trace.EventLog                     // 追踪事件日志
 
-	quit               *grpcsync.Event
-	done               *grpcsync.Event
+	quit               *grpcsync.Event // 同步退出事件
+	done               *grpcsync.Event // 同步完成事件
 	channelzRemoveOnce sync.Once
 	serveWG            sync.WaitGroup // counts active Serve goroutines for GracefulStop
 
-	channelzID int64 // channelz unique identification number
-	czData     *channelzData
+	channelzID int64         // channelz unique identification number
+	czData     *channelzData // 存储一些conn的自增id数据
 
 	serverWorkerChannels []chan *serverWorkerData
 }
 
 type serverOptions struct {
-	creds                 credentials.TransportCredentials
-	codec                 baseCodec
-	cp                    Compressor
-	dc                    Decompressor
+	creds                 credentials.TransportCredentials // 证书
+	codec                 baseCodec                        // 编码和解码
+	cp                    Compressor                       // 压缩接口
+	dc                    Decompressor                     // 解压接口
 	unaryInt              UnaryServerInterceptor
 	streamInt             StreamServerInterceptor
 	chainUnaryInts        []UnaryServerInterceptor
 	chainStreamInts       []StreamServerInterceptor
 	inTapHandle           tap.ServerInHandle
-	statsHandler          stats.Handler
-	maxConcurrentStreams  uint32
-	maxReceiveMessageSize int
-	maxSendMessageSize    int
+	statsHandler          stats.Handler // 主要是为统计做处理的，比如一次调用中的 rpc 和 conn
+	maxConcurrentStreams  uint32        // http2中最大并发流的个数
+	maxReceiveMessageSize int           // 最大接受消息大小
+	maxSendMessageSize    int           // 最大发生消息大小
 	unknownStreamDesc     *StreamDesc
-	keepaliveParams       keepalive.ServerParameters
+	keepaliveParams       keepalive.ServerParameters // 长连接的server参数
 	keepalivePolicy       keepalive.EnforcementPolicy
 	initialWindowSize     int32
 	initialConnWindowSize int32
 	writeBufferSize       int
 	readBufferSize        int
-	connectionTimeout     time.Duration
+	connectionTimeout     time.Duration // 连接超时时间
 	maxHeaderListSize     *uint32
-	headerTableSize       *uint32
+	headerTableSize       *uint32 // 最大头部大小
 	numServerWorkers      uint32
 }
 
@@ -579,6 +579,7 @@ func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
 	if ss != nil {
 		ht := reflect.TypeOf(sd.HandlerType).Elem()
 		st := reflect.TypeOf(ss)
+		// st是否实现了ht接口
 		if !st.Implements(ht) {
 			logger.Fatalf("grpc: Server.RegisterService found the handler of type %v that does not satisfy %v", st, ht)
 		}
@@ -596,6 +597,7 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 	if _, ok := s.services[sd.ServiceName]; ok {
 		logger.Fatalf("grpc: Server.RegisterService found duplicate service registration for %q", sd.ServiceName)
 	}
+	// service的描述信息, 从生成的pb.go文件中获得
 	info := &serviceInfo{
 		serviceImpl: ss,
 		methods:     make(map[string]*MethodDesc),
@@ -734,7 +736,8 @@ func (s *Server) Serve(lis net.Listener) error {
 	}()
 
 	var tempDelay time.Duration // how long to sleep on accept failure
-
+	// 循环处理每一个客户端连接
+	// 采用goroutine-per-connection的模式
 	for {
 		rawConn, err := lis.Accept()
 		if err != nil {
@@ -818,6 +821,7 @@ func (s *Server) handleRawConn(rawConn net.Conn) {
 		return
 	}
 	go func() {
+		// 处理http2上的流
 		s.serveStreams(st)
 		s.removeConn(st)
 	}()
@@ -1214,6 +1218,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 		return nil
 	}
 	ctx := NewContextWithServerTransportStream(stream.Context(), stream)
+	// 核心，调用业务方法
 	reply, appErr := md.Handler(info.serviceImpl, ctx, df, s.opts.unaryInt)
 	if appErr != nil {
 		appStatus, ok := status.FromError(appErr)
@@ -1508,6 +1513,7 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 }
 
 func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Stream, trInfo *traceInfo) {
+	// 当前流上的rpc方法名
 	sm := stream.Method()
 	if sm != "" && sm[0] == '/' {
 		sm = sm[1:]
@@ -1536,6 +1542,7 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 
 	srv, knownService := s.services[service]
 	if knownService {
+		// 调用具体的业务实现方法
 		if md, ok := srv.methods[method]; ok {
 			s.processUnaryRPC(t, stream, srv, md, trInfo)
 			return

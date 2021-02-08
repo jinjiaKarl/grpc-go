@@ -26,6 +26,7 @@ import (
 // received.  This is typically called by generated code.
 //
 // All errors returned by Invoke are compatible with the status package.
+// 客户端的调用都会到这个方法
 func (cc *ClientConn) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...CallOption) error {
 	// allow interceptor to see all applicable call options, which means those
 	// configured as defaults from dial option as well as per-call options
