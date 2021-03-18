@@ -250,6 +250,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	// Determine the resolver to use.
 	cc.parsedTarget = grpcutil.ParseTarget(cc.target, cc.dopts.copts.Dialer != nil)
 	channelz.Infof(logger, cc.channelzID, "parsed scheme: %q", cc.parsedTarget.Scheme)
+	// 获取解析地址的resolverBuilder
 	resolverBuilder := cc.getResolver(cc.parsedTarget.Scheme)
 	if resolverBuilder == nil {
 		// If resolver builder is still nil, the parsed target's scheme is
@@ -632,6 +633,7 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error {
 	}
 
 	var ret error
+	// 如果禁用服务配置或者服务配置为空，使用默认服务配置
 	if cc.dopts.disableServiceConfig || s.ServiceConfig == nil {
 		cc.maybeApplyDefaultServiceConfig(s.Addresses)
 		// TODO: do we need to apply a failing LB policy if there is no
@@ -664,7 +666,7 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error {
 			}
 		}
 	}
-
+	/* *1. 优先使用服务配置的负载均衡策略 *2. 如果返回的解析地址中有一个是 resolver.GRPCLB 类型，使用 grpclb */
 	var balCfg serviceconfig.LoadBalancingConfig
 	if cc.dopts.balancerBuilder == nil && cc.sc != nil && cc.sc.lbConfig != nil {
 		balCfg = cc.sc.lbConfig.cfg
@@ -684,6 +686,7 @@ func (cc *ClientConn) updateResolverState(s resolver.State, err error) error {
 			i++
 		}
 	}
+	// 调用负载均衡策略更新连接状态
 	uccsErr := bw.updateClientConnState(&balancer.ClientConnState{ResolverState: s, BalancerConfig: balCfg})
 	if ret == nil {
 		ret = uccsErr // prefer ErrBadResolver state since any other error is
@@ -989,6 +992,7 @@ func (cc *ClientConn) applyServiceConfigAndBalancer(sc *ServiceConfig, configSel
 		// Balancer dial option was set, and this is the first time handling
 		// resolved addresses. Build a balancer with dopts.balancerBuilder.
 		cc.curBalancerName = cc.dopts.balancerBuilder.Name()
+		// 创建cc.balancerWrapper
 		cc.balancerWrapper = newCCBalancerWrapper(cc, cc.dopts.balancerBuilder, cc.balancerBuildOpts)
 	}
 }
@@ -1576,11 +1580,13 @@ func (c *channelzChannel) ChannelzMetric() *channelz.ChannelInternalMetric {
 var ErrClientConnTimeout = errors.New("grpc: timed out when dialing")
 
 func (cc *ClientConn) getResolver(scheme string) resolver.Builder {
+	//  先查看是否在配置中存在resolver
 	for _, rb := range cc.dopts.resolvers {
 		if scheme == rb.Scheme() {
 			return rb
 		}
 	}
+	// 如果配置中没有相应的resolver，再从注册的resolver中寻找
 	return resolver.Get(scheme)
 }
 

@@ -86,6 +86,7 @@ type ClientStream interface {
 	// It must only be called after stream.CloseAndRecv has returned, or
 	// stream.Recv has returned a non-nil error (including io.EOF).
 	Trailer() metadata.MD
+	// 关闭发送数据的功能，该端只能接收数据
 	// CloseSend closes the send direction of the stream. It closes the stream
 	// when non-nil error is met. It is also not safe to call CloseSend
 	// concurrently with SendMsg.
@@ -105,6 +106,7 @@ type ClientStream interface {
 	//   - The stream is done, or
 	//   - The stream breaks.
 	//
+	// SendMsg不会等到该条消息被服务端接收了才返回
 	// SendMsg does not wait until the message is received by the server. An
 	// untimely stream closure may result in lost messages. To ensure delivery,
 	// users should ensure the RPC completed successfully using RecvMsg.
@@ -141,6 +143,7 @@ type ClientStream interface {
 //
 // If none of the above happen, a goroutine and a context will be leaked, and grpc
 // will not call the optionally-configured stats handler with a stats.End message.
+// 创建一个流
 func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method string, opts ...CallOption) (ClientStream, error) {
 	// allow interceptor to see all applicable call options, which means those
 	// configured as defaults from dial option as well as per-call options
@@ -1343,6 +1346,7 @@ type ServerStream interface {
 	//   - The stream is done, or
 	//   - The stream breaks.
 	//
+	// 不会阻塞等待客户端接受到消息才返回
 	// SendMsg does not wait until the message is received by the client. An
 	// untimely stream closure may result in lost messages.
 	//
@@ -1350,6 +1354,7 @@ type ServerStream interface {
 	// calling RecvMsg on the same stream at the same time, but it is not safe
 	// to call SendMsg on the same stream in different goroutines.
 	SendMsg(m interface{}) error
+	// 阻塞等待接收消息
 	// RecvMsg blocks until it receives a message into m or the stream is
 	// done. It returns io.EOF when the client has performed a CloseSend. On
 	// any non-EOF error, the stream is aborted and the error contains the

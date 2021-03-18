@@ -31,6 +31,7 @@ func (*passthroughBuilder) Build(target resolver.Target, cc resolver.ClientConn,
 		target: target,
 		cc:     cc,
 	}
+	// 创建Resolver的时候，进行第一次的解析
 	r.start()
 	return r, nil
 }
@@ -44,10 +45,12 @@ type passthroughResolver struct {
 	cc     resolver.ClientConn
 }
 
+// 对于passthroughResolver来说，正如他的名字，直接将参数作为结果返回
 func (r *passthroughResolver) start() {
 	r.cc.UpdateState(resolver.State{Addresses: []resolver.Address{{Addr: r.target.Endpoint}}})
 }
 
+// 触发名字解析
 func (*passthroughResolver) ResolveNow(o resolver.ResolveNowOptions) {}
 
 func (*passthroughResolver) Close() {}

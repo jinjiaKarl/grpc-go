@@ -34,6 +34,7 @@ import (
 
 // ccResolverWrapper is a wrapper on top of cc for resolvers.
 // It implements resolver.ClientConn interface.
+// 实现了resolver.ClientConn interface
 type ccResolverWrapper struct {
 	cc         *ClientConn
 	resolverMu sync.Mutex
@@ -71,6 +72,7 @@ func newCCResolverWrapper(cc *ClientConn, rb resolver.Builder) (*ccResolverWrapp
 	// accessing ccr.resolver which is being assigned here.
 	ccr.resolverMu.Lock()
 	defer ccr.resolverMu.Unlock()
+	// 根据传入的Builder，创建resolver，并放入wrapper中
 	ccr.resolver, err = rb.Build(cc.parsedTarget, ccr, rbo)
 	if err != nil {
 		return nil, err
@@ -144,7 +146,9 @@ func (ccr *ccResolverWrapper) UpdateState(s resolver.State) {
 	if channelz.IsOn() {
 		ccr.addChannelzTraceEvent(s)
 	}
+	// 将Resolver解析的最新状态保存下来
 	ccr.curState = s
+	// 对状态进行更新, 重点为crr.cc.updateResolverState() 会将现在的状态传递给balance
 	ccr.poll(ccr.cc.updateResolverState(ccr.curState, nil))
 }
 

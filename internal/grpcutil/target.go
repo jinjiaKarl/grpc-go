@@ -44,6 +44,7 @@ func split2(s, sep string) (string, string, bool) {
 // If target is not a valid scheme://authority/endpoint as specified in
 // https://github.com/grpc/grpc/blob/master/doc/naming.md,
 // it returns {Endpoint: target}.
+// 获取开发者传入的target参数的地址类型
 func ParseTarget(target string, skipUnixColonParsing bool) (ret resolver.Target) {
 	var ok bool
 	if strings.HasPrefix(target, "unix-abstract:") {
