@@ -57,20 +57,20 @@ type dialOptions struct {
 	copts           transport.ConnectOptions
 	callOptions     []CallOption
 	// This is used by WithBalancerName dial option.
-	balancerBuilder             balancer.Builder
+	balancerBuilder             balancer.Builder // 负载均衡
 	channelzParentID            int64
 	disableServiceConfig        bool
 	disableRetry                bool
 	disableHealthCheck          bool
 	healthCheckFunc             internal.HealthChecker
 	minConnectTimeout           func() time.Duration
-	defaultServiceConfig        *ServiceConfig // defaultServiceConfig is parsed from defaultServiceConfigRawJSON.
+	defaultServiceConfig        *ServiceConfig // defaultServiceConfig is parsed from defaultServiceConfigRawJSON. 负载均衡器
 	defaultServiceConfigRawJSON *string
 	// This is used by ccResolverWrapper to backoff between successive calls to
 	// resolver.ResolveNow(). The user will have no need to configure this, but
 	// we need to be able to configure this in tests.
 	resolveNowBackoff func(int) time.Duration
-	resolvers         []resolver.Builder
+	resolvers         []resolver.Builder // 解析
 }
 
 // DialOption configures how we set up the connection.

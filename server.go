@@ -1346,6 +1346,8 @@ func getChainStreamHandler(interceptors []StreamServerInterceptor, curr int, inf
 }
 
 func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transport.Stream, info *serviceInfo, sd *StreamDesc, trInfo *traceInfo) (err error) {
+	// 这个StreamDesc注册的函数格式是StreamHandler，每个sd.Handler执行之前由processStreamingRPC生成新的serverStream来实现协议基本的SendMsg和RecvMsg方法。
+	// sd.Handler就是生成pd.go里面的类似_BookService_PDE_Handler函数
 	if channelz.IsOn() {
 		s.incrCallsStarted()
 	}
@@ -1359,6 +1361,7 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 		sh.HandleRPC(stream.Context(), statsBegin)
 	}
 	ctx := NewContextWithServerTransportStream(stream.Context(), stream)
+	// serverStream实现了ServerStream接口
 	ss := &serverStream{
 		ctx:                   ctx,
 		t:                     t,
@@ -1547,6 +1550,7 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 			s.processUnaryRPC(t, stream, srv, md, trInfo)
 			return
 		}
+		// 流式接口
 		if sd, ok := srv.streams[method]; ok {
 			s.processStreamingRPC(t, stream, srv, sd, trInfo)
 			return

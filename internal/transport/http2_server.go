@@ -62,6 +62,7 @@ var (
 var serverConnectionCounter uint64
 
 // http2Server implements the ServerTransport interface with HTTP2.
+// 实现了ServerTransport接口
 type http2Server struct {
 	lastRead    int64 // Keep this field 64-bit aligned. Accessed atomically.
 	ctx         context.Context
@@ -135,6 +136,7 @@ func newHTTP2Server(conn net.Conn, config *ServerConfig) (_ ServerTransport, err
 	}
 	framer := newFramer(conn, writeBufSize, readBufSize, maxHeaderListSize)
 	// Send initial settings as connection preface to client.
+	// 发送的settings帧
 	isettings := []http2.Setting{{
 		ID:  http2.SettingMaxFrameSize,
 		Val: http2MaxFrameLen,
@@ -302,6 +304,7 @@ func newHTTP2Server(conn net.Conn, config *ServerConfig) (_ ServerTransport, err
 
 // operateHeader takes action on the decoded headers.
 func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(*Stream), traceCtx func(context.Context, string) context.Context) (fatal bool) {
+	// stream以streamID为区分
 	streamID := frame.Header().StreamID
 	state := &decodeState{
 		serverSide: true,
@@ -452,6 +455,7 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 // HandleStreams receives incoming streams using the given handler. This is
 // typically run in a separate goroutine.
 // traceCtx attaches trace to ctx and returns the new context.
+// 从frame中读取帧并按照帧类型处理。一次通信过程通常以SETINGS+HEADERS+DATA开始。
 func (t *http2Server) HandleStreams(handle func(*Stream), traceCtx func(context.Context, string) context.Context) {
 	defer close(t.readerDone)
 	for {
