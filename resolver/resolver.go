@@ -44,6 +44,7 @@ var (
 // NOTE: this function must only be called during initialization time (i.e. in
 // an init() function), and is not thread-safe. If multiple Resolvers are
 // registered with the same name, the one registered last will take effect.
+// 插件式编程，根据需要进行注册
 func Register(b Builder) {
 	m[b.Scheme()] = b
 }
@@ -100,7 +101,7 @@ const (
 // later release.
 type Address struct {
 	// Addr is the server address on which a connection will be established.
-	Addr string
+	Addr string // ip+port
 
 	// ServerName is the name of this address.
 	// If non-empty, the ServerName is used as the transport certification authority for
@@ -117,7 +118,7 @@ type Address struct {
 
 	// Attributes contains arbitrary data about this address intended for
 	// consumption by the load balancing policy.
-	Attributes *attributes.Attributes
+	Attributes *attributes.Attributes // 服务器的额外信息
 
 	// Type is the type of this address.
 	//
@@ -179,8 +180,10 @@ type State struct {
 // brand new implementation of this interface. For the situations like
 // testing, the new implementation should embed this interface. This allows
 // gRPC to add new methods to this interface.
+//  resolver_conn_wrapper.go实现了该接口
 type ClientConn interface {
 	// UpdateState updates the state of the ClientConn appropriately.
+	// 服务列表和服务配置更新回调接口，目前都使用这个通知 gRPC 上层
 	UpdateState(State)
 	// ReportError notifies the ClientConn that the Resolver encountered an
 	// error.  The ClientConn will notify the load balancer and begin calling
@@ -231,6 +234,7 @@ type Builder interface {
 	//
 	// gRPC dial calls Build synchronously, and fails if the returned error is
 	// not nil.
+	// 创建 Resolver，当 resolver 发现服务列表更新，需要通过 ClientConn 接口通知上层
 	Build(target Target, cc ClientConn, opts BuildOptions) (Resolver, error)
 	// Scheme returns the scheme supported by this resolver.
 	// Scheme is defined at https://github.com/grpc/grpc/blob/master/doc/naming.md.
@@ -247,6 +251,7 @@ type Resolver interface {
 	// again. It's just a hint, resolver can ignore this if it's not necessary.
 	//
 	// It could be called multiple times concurrently.
+	// 当有连接被出现异常时，会触发该方法，因为这时候可能是有服务实例挂了，需要立即实现一次服务发现
 	ResolveNow(ResolveNowOptions)
 	// Close closes the resolver.
 	Close()

@@ -33,6 +33,7 @@ import "sync"
 // performance critical code paths, using Unbounded is strongly discouraged and
 // defining a new type specific implementation of this buffer is preferred. See
 // internal/transport/transport.go for an example of this.
+// 无限长度缓冲区: 不需要额外的goroutine
 type Unbounded struct {
 	c       chan interface{}
 	mu      sync.Mutex
@@ -62,6 +63,7 @@ func (b *Unbounded) Put(t interface{}) {
 // Load sends the earliest buffered data, if any, onto the read channel
 // returned by Get(). Users are expected to call this every time they read a
 // value from the read channel.
+// 将backlog中的数据传送到管道中
 func (b *Unbounded) Load() {
 	b.mu.Lock()
 	if len(b.backlog) > 0 {

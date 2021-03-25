@@ -26,15 +26,17 @@ import (
 )
 
 // Event represents a one-time event that may occur in the future.
+// 主要用于控制退出逻辑
 type Event struct {
-	fired int32
-	c     chan struct{}
-	o     sync.Once
+	fired int32         // 用于标记是否被触发
+	c     chan struct{} //  用于发送触发信号
+	o     sync.Once     // 保证只被执行一次
 }
 
 // Fire causes e to complete.  It is safe to call multiple times, and
 // concurrently.  It returns true iff this call to Fire caused the signaling
 // channel returned by Done to close.
+//  触发事件
 func (e *Event) Fire() bool {
 	ret := false
 	e.o.Do(func() {
@@ -46,6 +48,7 @@ func (e *Event) Fire() bool {
 }
 
 // Done returns a channel that will be closed when Fire is called.
+// 返回被触发信号
 func (e *Event) Done() <-chan struct{} {
 	return e.c
 }
