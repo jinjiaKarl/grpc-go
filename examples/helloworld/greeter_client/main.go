@@ -22,10 +22,12 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"os"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/channelz/service"
 	pb "google.golang.org/grpc/examples/helloworld/helloworld"
 )
 
@@ -35,6 +37,16 @@ const (
 )
 
 func main() {
+	/***** Set up the server serving channelz service. *****/
+	lis, err := net.Listen("tcp", ":50050")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	service.RegisterChannelzServiceToServer(s)
+	go s.Serve(lis)
+	defer s.Stop()
+
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
