@@ -73,6 +73,7 @@ func newCCResolverWrapper(cc *ClientConn, rb resolver.Builder) (*ccResolverWrapp
 	ccr.resolverMu.Lock()
 	defer ccr.resolverMu.Unlock()
 	// 根据传入的Builder，创建resolver，并放入wrapper中
+	// 注意传入的第二个参数
 	ccr.resolver, err = rb.Build(cc.parsedTarget, ccr, rbo)
 	if err != nil {
 		return nil, err
@@ -138,6 +139,7 @@ func (ccr *ccResolverWrapper) poll(err error) {
 	}()
 }
 
+// resolver.ClientConn
 func (ccr *ccResolverWrapper) UpdateState(s resolver.State) {
 	if ccr.done.HasFired() {
 		return
@@ -148,10 +150,12 @@ func (ccr *ccResolverWrapper) UpdateState(s resolver.State) {
 	}
 	// 将Resolver解析的最新状态保存下来
 	ccr.curState = s
-	// 对状态进行更新, 重点为crr.cc.updateResolverState() 会将现在的状态传递给balance
+	// 对状态进行更新, 重点为crr.cc.updateResolverState() 会将现在的状态传递给balancer
+	// 这里会和balancer进行通信
 	ccr.poll(ccr.cc.updateResolverState(ccr.curState, nil))
 }
 
+// resolver.ClientConn
 func (ccr *ccResolverWrapper) ReportError(err error) {
 	if ccr.done.HasFired() {
 		return
@@ -161,6 +165,7 @@ func (ccr *ccResolverWrapper) ReportError(err error) {
 }
 
 // NewAddress is called by the resolver implementation to send addresses to gRPC.
+// resolver.ClientConn
 func (ccr *ccResolverWrapper) NewAddress(addrs []resolver.Address) {
 	if ccr.done.HasFired() {
 		return
@@ -175,6 +180,7 @@ func (ccr *ccResolverWrapper) NewAddress(addrs []resolver.Address) {
 
 // NewServiceConfig is called by the resolver implementation to send service
 // configs to gRPC.
+// resolver.ClientConn
 func (ccr *ccResolverWrapper) NewServiceConfig(sc string) {
 	if ccr.done.HasFired() {
 		return
@@ -197,6 +203,7 @@ func (ccr *ccResolverWrapper) NewServiceConfig(sc string) {
 	ccr.poll(ccr.cc.updateResolverState(ccr.curState, nil))
 }
 
+// resolver.ClientConn
 func (ccr *ccResolverWrapper) ParseServiceConfig(scJSON string) *serviceconfig.ParseResult {
 	return parseServiceConfig(scJSON)
 }

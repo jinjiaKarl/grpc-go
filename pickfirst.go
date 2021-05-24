@@ -62,6 +62,7 @@ func (b *pickfirstBalancer) ResolverError(err error) {
 	}
 }
 
+// 根据name resovler传过来的addr，更新连接
 func (b *pickfirstBalancer) UpdateClientConnState(cs balancer.ClientConnState) error {
 	if len(cs.ResolverState.Addresses) == 0 {
 		b.ResolverError(errors.New("produced zero addresses"))

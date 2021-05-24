@@ -251,6 +251,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	cc.parsedTarget = grpcutil.ParseTarget(cc.target, cc.dopts.copts.Dialer != nil)
 	channelz.Infof(logger, cc.channelzID, "parsed scheme: %q", cc.parsedTarget.Scheme)
 	// 获取解析地址的resolverBuilder
+	// 使用dialOption或者将这个resolver.Builder注册到grpc中
 	resolverBuilder := cc.getResolver(cc.parsedTarget.Scheme)
 	if resolverBuilder == nil {
 		// If resolver builder is still nil, the parsed target's scheme is
@@ -267,6 +268,7 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 		}
 	}
 
+	// 证书相关
 	creds := cc.dopts.copts.TransportCredentials
 	if creds != nil && creds.Info().ServerName != "" {
 		cc.authority = creds.Info().ServerName
@@ -485,27 +487,27 @@ var _ ClientConnInterface = (*ClientConn)(nil)
 // re-resolving the name and reconnecting.
 type ClientConn struct {
 	ctx    context.Context
-	cancel context.CancelFunc
+	cancel context.CancelFunc // 发生错误时调用
 
-	target       string
-	parsedTarget resolver.Target
+	target       string          // dail传入的target
+	parsedTarget resolver.Target // 将target解析为resolver识别的Target类型
 	authority    string
 	dopts        dialOptions
-	csMgr        *connectivityStateManager
+	csMgr        *connectivityStateManager // 管理连接的状态
 
 	balancerBuildOpts balancer.BuildOptions
-	blockingpicker    *pickerWrapper
+	blockingpicker    *pickerWrapper // 负载均衡选择wrapper
 
 	safeConfigSelector iresolver.SafeConfigSelector
 
 	mu              sync.RWMutex
-	resolverWrapper *ccResolverWrapper
-	sc              *ServiceConfig
+	resolverWrapper *ccResolverWrapper // 解析器wrapper
+	sc              *ServiceConfig     // 配置
 	conns           map[*addrConn]struct{}
 	// Keepalive parameter can be updated if a GoAway is received.
 	mkp             keepalive.ClientParameters
 	curBalancerName string
-	balancerWrapper *ccBalancerWrapper
+	balancerWrapper *ccBalancerWrapper // 负载均衡wrapper
 	retryThrottler  atomic.Value
 
 	firstResolveEvent *grpcsync.Event
@@ -607,6 +609,7 @@ func (cc *ClientConn) maybeApplyDefaultServiceConfig(addrs []resolver.Address) {
 	}
 }
 
+// name resolver获得列表之后，调用这个方法，更新当前的ClientConn的状态
 func (cc *ClientConn) updateResolverState(s resolver.State, err error) error {
 	defer cc.firstResolveEvent.Fire()
 	cc.mu.Lock()
@@ -980,6 +983,7 @@ func (cc *ClientConn) applyServiceConfigAndBalancer(sc *ServiceConfig, configSel
 					break
 				}
 			}
+			// 选择而不同的lb
 			if isGRPCLB {
 				newBalancerName = grpclbName
 			} else if cc.sc != nil && cc.sc.LB != nil {
@@ -990,6 +994,7 @@ func (cc *ClientConn) applyServiceConfigAndBalancer(sc *ServiceConfig, configSel
 		}
 		cc.switchBalancer(newBalancerName)
 	} else if cc.balancerWrapper == nil {
+		// name: "round_robin",
 		// Balancer dial option was set, and this is the first time handling
 		// resolved addresses. Build a balancer with dopts.balancerBuilder.
 		cc.curBalancerName = cc.dopts.balancerBuilder.Name()
@@ -1101,7 +1106,7 @@ type addrConn struct {
 	addrs   []resolver.Address // All addresses that the resolver resolved to.
 
 	// Use updateConnectivityState for updating addrConn's connectivity state.
-	state connectivity.State
+	state connectivity.State //单个连接的状态
 
 	backoffIdx   int // Needs to be stateful for resetConnectBackoff.
 	resetBackoff chan struct{}
@@ -1206,7 +1211,7 @@ func (ac *addrConn) resetTransport() {
 			newTr.Close()
 			return
 		}
-		ac.curAddr = addr
+		ac.curAddr = addr // 当前addrConn连接的地址
 		ac.transport = newTr
 		ac.backoffIdx = 0
 
@@ -1234,6 +1239,7 @@ func (ac *addrConn) resetTransport() {
 // tryAllAddrs tries to creates a connection to the addresses, and stop when at the
 // first successful one. It returns the transport, the address and a Event in
 // the successful case. The Event fires when the returned transport disconnects.
+// name resolver解析出来3个地址，每一个地址都会调用这个函数
 func (ac *addrConn) tryAllAddrs(addrs []resolver.Address, connectDeadline time.Time) (transport.ClientTransport, resolver.Address, *grpcsync.Event, error) {
 	var firstConnErr error
 	for _, addr := range addrs {
@@ -1254,7 +1260,7 @@ func (ac *addrConn) tryAllAddrs(addrs []resolver.Address, connectDeadline time.T
 		ac.mu.Unlock()
 
 		channelz.Infof(logger, ac.channelzID, "Subchannel picks a new address %q to connect", addr.Addr)
-
+		// 创建真正的http2的连接
 		newTr, reconnect, err := ac.createTransport(addr, copts, connectDeadline)
 		if err == nil {
 			return newTr, addr, reconnect, nil
@@ -1324,7 +1330,7 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 	if channelz.IsOn() {
 		copts.ChannelzParentID = ac.channelzID
 	}
-
+	// 创建传输层
 	newTr, err := transport.NewClientTransport(connectCtx, ac.cc.ctx, addr, copts, onPrefaceReceipt, onGoAway, onClose)
 	if err != nil {
 		// newTr is either nil, or closed.

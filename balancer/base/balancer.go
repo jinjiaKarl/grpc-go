@@ -30,9 +30,10 @@ import (
 
 var logger = grpclog.Component("balancer")
 
+// builder
 type baseBuilder struct {
 	name          string
-	pickerBuilder PickerBuilder
+	pickerBuilder PickerBuilder // roundrobin等
 	config        Config
 }
 
@@ -57,15 +58,16 @@ func (bb *baseBuilder) Name() string {
 	return bb.name
 }
 
+// balancer
 type baseBalancer struct {
-	cc            balancer.ClientConn
+	cc            balancer.ClientConn // ccBalancerWrapper
 	pickerBuilder PickerBuilder
 
 	csEvltr *balancer.ConnectivityStateEvaluator
 	state   connectivity.State
 
-	subConns map[resolver.Address]balancer.SubConn // `attributes` is stripped from the keys of this map (the addresses)
-	scStates map[balancer.SubConn]connectivity.State
+	subConns map[resolver.Address]balancer.SubConn   // `attributes` is stripped from the keys of this map (the addresses)
+	scStates map[balancer.SubConn]connectivity.State // key: acBalancerWrapper
 	picker   balancer.Picker
 	config   Config
 
@@ -91,6 +93,7 @@ func (b *baseBalancer) ResolverError(err error) {
 	})
 }
 
+// 更新，将不同的地址传入，创建与后端不同的连接
 func (b *baseBalancer) UpdateClientConnState(s balancer.ClientConnState) error {
 	// TODO: handle s.ResolverState.ServiceConfig?
 	if logger.V(2) {
@@ -120,6 +123,7 @@ func (b *baseBalancer) UpdateClientConnState(s balancer.ClientConnState) error {
 			// When creating SubConn, the original address with attributes is
 			// passed through. So that connection configurations in attributes
 			// (like creds) will be used.
+			// 创建连接
 			sc, err := b.cc.NewSubConn([]resolver.Address{a}, balancer.NewSubConnOptions{HealthCheckEnabled: b.config.HealthCheck})
 			if err != nil {
 				logger.Warningf("base.baseBalancer: failed to create new SubConn: %v", err)
@@ -127,6 +131,7 @@ func (b *baseBalancer) UpdateClientConnState(s balancer.ClientConnState) error {
 			}
 			b.subConns[aNoAttrs] = sc
 			b.scStates[sc] = connectivity.Idle
+			// 创建传输层
 			sc.Connect()
 		} else {
 			// Always update the subconn's address in case the attributes

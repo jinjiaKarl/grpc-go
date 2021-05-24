@@ -64,6 +64,7 @@ func newCCBalancerWrapper(cc *ClientConn, b balancer.Builder, bopts balancer.Bui
 
 // watcher balancer functions sequentially, so the balancer can be implemented
 // lock-free.
+// 监听服务地址更新事件和连接状态变化事件
 func (ccb *ccBalancerWrapper) watcher() {
 	for {
 		select {
@@ -116,6 +117,7 @@ func (ccb *ccBalancerWrapper) handleSubConnStateChange(sc balancer.SubConn, s co
 	})
 }
 
+// ClientConn.updateResolverState -> ccBalancerWrapper.updateClientConnState -> ccBalancerWrapper.watcher -> lbBalancer.UpdateClientConnState
 func (ccb *ccBalancerWrapper) updateClientConnState(ccs *balancer.ClientConnState) error {
 	ccb.balancerMu.Lock()
 	defer ccb.balancerMu.Unlock()
@@ -137,6 +139,7 @@ func (ccb *ccBalancerWrapper) NewSubConn(addrs []resolver.Address, opts balancer
 	if ccb.subConns == nil {
 		return nil, fmt.Errorf("grpc: ClientConn balancer wrapper was closed")
 	}
+	// 创建地址
 	ac, err := ccb.cc.newAddrConn(addrs, opts)
 	if err != nil {
 		return nil, err

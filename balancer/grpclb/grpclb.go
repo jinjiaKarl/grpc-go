@@ -409,6 +409,7 @@ func (lb *lbBalancer) ResolverError(error) {
 	// works at least once.
 }
 
+// 更新
 func (lb *lbBalancer) UpdateClientConnState(ccs balancer.ClientConnState) error {
 	if logger.V(2) {
 		logger.Infof("lbBalancer: UpdateClientConnState: %+v", ccs)

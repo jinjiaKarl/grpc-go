@@ -159,6 +159,7 @@ func dial(ctx context.Context, fn func(context.Context, string) (net.Conn, error
 	if networkType == "tcp" && useProxy {
 		return proxyDial(ctx, address, grpcUA)
 	}
+	// net.Conn
 	return (&net.Dialer{}).DialContext(ctx, networkType, address)
 }
 

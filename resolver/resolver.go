@@ -118,7 +118,7 @@ type Address struct {
 
 	// Attributes contains arbitrary data about this address intended for
 	// consumption by the load balancing policy.
-	Attributes *attributes.Attributes // 服务器的额外信息
+	Attributes *attributes.Attributes // 服务器的额外信息, 比如权重、总连接数等等信息，用于负载均衡算法的判定
 
 	// Type is the type of this address.
 	//
@@ -222,8 +222,9 @@ type ClientConn interface {
 // endpoint), we set the Scheme to be the default scheme, and set the Endpoint to be the full target
 // string. e.g. target string "unknown_scheme://authority/endpoint" will be parsed into
 // &Target{Scheme: resolver.GetDefaultScheme(), Endpoint: "unknown_scheme://authority/endpoint"}.
+// scheme://authority/enpoint
 type Target struct {
-	Scheme    string
+	Scheme    string // "etcdv3:///"
 	Authority string
 	Endpoint  string
 }
