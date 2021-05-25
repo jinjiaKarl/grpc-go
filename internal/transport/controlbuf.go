@@ -104,6 +104,7 @@ type registerStream struct {
 func (*registerStream) isTransportResponseFrame() bool { return false }
 
 // headerFrame is also used to register stream on the client-side.
+// HEADERS帧
 type headerFrame struct {
 	streamID   uint32
 	hf         []hpack.HeaderField
@@ -127,7 +128,7 @@ type cleanupStream struct {
 }
 
 func (c *cleanupStream) isTransportResponseFrame() bool { return c.rst } // Results in a RST_STREAM
-
+// DATA帧
 type dataFrame struct {
 	streamID  uint32
 	endStream bool

@@ -724,6 +724,7 @@ func (cs *clientStream) bufferForRetryLocked(sz int, op func(a *csAttempt) error
 	cs.buffer = append(cs.buffer, op)
 }
 
+// 客户端调用的send，最终都会调用到这个函数
 func (cs *clientStream) SendMsg(m interface{}) (err error) {
 	defer func() {
 		if err != nil && err != io.EOF {

@@ -55,6 +55,7 @@ import (
 var clientConnectionCounter uint64
 
 // http2Client implements the ClientTransport interface with HTTP2.
+// 一个http2Client可以建立多个Stream
 type http2Client struct {
 	lastRead   int64 // Keep this field 64-bit aligned. Accessed atomically.
 	ctx        context.Context
@@ -62,7 +63,7 @@ type http2Client struct {
 	ctxDone    <-chan struct{} // Cache the ctx.Done() chan.
 	userAgent  string
 	md         metadata.MD
-	conn       net.Conn // underlying communication channel
+	conn       net.Conn // underlying communication channel  底层连接
 	loopy      *loopyWriter
 	remoteAddr net.Addr
 	localAddr  net.Addr
@@ -110,7 +111,7 @@ type http2Client struct {
 
 	mu            sync.Mutex // guard the following variables
 	state         transportState
-	activeStreams map[uint32]*Stream
+	activeStreams map[uint32]*Stream // 当前建立的http2连接上的stream数量
 	// prevGoAway ID records the Last-Stream-ID in the previous GOAway frame.
 	prevGoAwayID uint32
 	// goAwayReason records the http2.ErrCode and debug data received with the
